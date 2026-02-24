@@ -1,36 +1,48 @@
 import time
-import random
+import os
+from binance.client import Client
 
 class TradingBot:
 
     def __init__(self):
-        self.balance = 10000
+        self.api_key = os.environ.get("BINANCE_API_KEY")
+        self.api_secret = os.environ.get("BINANCE_API_SECRET")
+
+        # conexión a Binance TESTNET
+        self.client = Client(self.api_key, self.api_secret)
+        self.client.API_URL = 'https://testnet.binance.vision/api'
+
+        self.balance = 0
         self.positions = []
         self.pnl = 0
         self.running = True
 
-    def get_market_signal(self):
-        # Simulación IA (luego pondremos la real)
-        return random.choice(["buy", "sell", "hold"])
+    def update_balance(self):
+        try:
+            account = self.client.get_account()
+            for asset in account["balances"]:
+                if asset["asset"] == "USDT":
+                    self.balance = float(asset["free"])
+        except Exception as e:
+            print("Error balance:", e)
 
-    def execute_trade(self, signal):
-        if signal == "buy":
-            amount = random.randint(50, 200)
-            self.positions.append(amount)
-            print(f"Compra simulada: {amount}")
-
-        elif signal == "sell" and self.positions:
-            amount = self.positions.pop()
-            profit = random.randint(-20, 50)
-            self.pnl += profit
-            print(f"Venta simulada: {amount} | PnL: {profit}")
+    def get_price(self, symbol="BTCUSDT"):
+        try:
+            ticker = self.client.get_symbol_ticker(symbol=symbol)
+            return float(ticker["price"])
+        except:
+            return None
 
     def run(self):
-        print("Bot iniciado...")
+        print("Bot conectado a Binance Testnet")
         while self.running:
-            signal = self.get_market_signal()
-            self.execute_trade(signal)
-            time.sleep(5)
+            self.update_balance()
+            price = self.get_price()
+
+            if price:
+                print(f"Precio BTC: {price} | Balance: {self.balance}")
+
+            time.sleep(10)
 
     def stop(self):
         self.running = False
