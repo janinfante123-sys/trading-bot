@@ -1,6 +1,8 @@
 import time
 import os
-from binance.client import Client
+import requests
+import hmac
+import hashlib
 
 class TradingBot:
 
@@ -8,78 +10,54 @@ class TradingBot:
         self.api_key = os.environ.get("BINANCE_API_KEY")
         self.api_secret = os.environ.get("BINANCE_API_SECRET")
 
-        # Binance Demo Trading endpoint correcto
-        self.client = Client(self.api_key, self.api_secret)
-        self.client.FUTURES_URL = "https://demo.binance.com/fapi"
-
+        self.base_url = "https://demo.binance.com"
         self.symbol = "BTCUSDT"
         self.position = 0
         self.entry_price = 0
         self.trade_size_usdt = 50
         self.running = True
 
-    def get_price(self):
-        ticker = self.client.futures_symbol_ticker(symbol=self.symbol)
-        return float(ticker["price"])
+    def sign(self, params):
+        query_string = "&".join([f"{k}={v}" for k, v in params.items()])
+        signature = hmac.new(
+            self.api_secret.encode(),
+            query_string.encode(),
+            hashlib.sha256
+        ).hexdigest()
+        return query_string + "&signature=" + signature
 
     def get_balance(self):
-        balances = self.client.futures_account_balance()
-        for b in balances:
-            if b["asset"] == "USDT":
-                return float(b["balance"])
+        try:
+            params = {
+                "timestamp": int(time.time() * 1000)
+            }
+            query = self.sign(params)
+
+            headers = {"X-MBX-APIKEY": self.api_key}
+
+            response = requests.get(
+                f"{self.base_url}/fapi/v2/balance?{query}",
+                headers=headers
+            )
+
+            data = response.json()
+
+            for asset in data:
+                if asset["asset"] == "USDT":
+                    return float(asset["balance"])
+
+        except Exception as e:
+            print("Balance error:", e)
+
         return 0
 
-    def buy(self, price):
-        qty = round(self.trade_size_usdt / price, 3)
-        try:
-            self.client.futures_create_order(
-                symbol=self.symbol,
-                side="BUY",
-                type="MARKET",
-                quantity=qty
-            )
-            self.position = qty
-            self.entry_price = price
-            print("LONG abierta")
-        except Exception as e:
-            print("BUY error:", e)
-
-    def sell(self, price):
-        try:
-            self.client.futures_create_order(
-                symbol=self.symbol,
-                side="SELL",
-                type="MARKET",
-                quantity=self.position
-            )
-            print("Posición cerrada")
-            self.position = 0
-        except Exception as e:
-            print("SELL error:", e)
-
     def run(self):
-        print("Bot conectado a Binance Demo")
+        print("BOT CONECTADO A BINANCE DEMO DIRECTO")
 
         while self.running:
-            try:
-                price = self.get_price()
-                balance = self.get_balance()
-                print("Balance:", balance)
-
-                if self.position == 0:
-                    if int(time.time()) % 30 == 0:
-                        self.buy(price)
-                else:
-                    if price > self.entry_price * 1.002:
-                        self.sell(price)
-                    if price < self.entry_price * 0.998:
-                        self.sell(price)
-
-                time.sleep(5)
-
-            except Exception as e:
-                print("Loop error:", e)
-                time.sleep(5)
+            balance = self.get_balance()
+            print("Balance real:", balance)
+            time.sleep(10)
 
     def stop(self):
         self.running = False
