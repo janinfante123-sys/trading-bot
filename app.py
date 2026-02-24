@@ -3,25 +3,26 @@ from threading import Thread
 import bot_engine
 
 app = Flask(__name__)
-
 bot = bot_engine.bot
 
-# Hilo para que el bot corra en segundo plano
 def start_bot():
     bot.run()
 
 @app.route("/")
 def home():
-    return "Bot de trading activo 🚀"
+    return "Bot activo 🚀"
 
 @app.route("/status")
 def status():
-    return jsonify({
-        "balance": bot.balance,
-        "pnl": bot.pnl,
-        "open_positions": len(bot.positions),
-        "running": bot.running
-    })
+    try:
+        return jsonify({
+            "balance": getattr(bot, "balance", 0),
+            "position": getattr(bot, "position", 0),
+            "entry_price": getattr(bot, "entry_price", 0),
+            "running": bot.running
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)})
 
 @app.route("/start")
 def start():
