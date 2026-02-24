@@ -8,14 +8,20 @@ class TradingBot:
         self.api_key = os.environ.get("BINANCE_API_KEY")
         self.api_secret = os.environ.get("BINANCE_API_SECRET")
 
-        # Futures Testnet endpoint
-        self.client = Client(self.api_key, self.api_secret)
-        self.client.FUTURES_URL = "https://testnet.binancefuture.com/fapi"
+        # Cliente futures testnet correcto
+        self.client = Client(
+            self.api_key,
+            self.api_secret,
+            testnet=True
+        )
+
+        # endpoint futures testnet
+        self.client.API_URL = "https://testnet.binancefuture.com"
 
         self.symbol = "BTCUSDT"
         self.position = 0
         self.entry_price = 0
-        self.trade_size_usdt = 50  # pequeño tamaño demo
+        self.trade_size_usdt = 25
         self.running = True
 
     def get_price(self):
@@ -30,21 +36,21 @@ class TradingBot:
         return 0
 
     def buy(self, price):
-        quantity = round(self.trade_size_usdt / price, 3)
+        qty = round(self.trade_size_usdt / price, 3)
 
         try:
             self.client.futures_create_order(
                 symbol=self.symbol,
                 side="BUY",
                 type="MARKET",
-                quantity=quantity
+                quantity=qty
             )
-            self.position = quantity
+            self.position = qty
             self.entry_price = price
-            print(f"LONG abierto {quantity} BTC a {price}")
+            print("LONG abierta")
 
         except Exception as e:
-            print("Error BUY:", e)
+            print("BUY error:", e)
 
     def sell(self, price):
         try:
@@ -54,24 +60,24 @@ class TradingBot:
                 type="MARKET",
                 quantity=self.position
             )
-            print(f"Cierre posición a {price}")
+            print("Posición cerrada")
             self.position = 0
 
         except Exception as e:
-            print("Error SELL:", e)
+            print("SELL error:", e)
 
     def run(self):
-        print("Bot Futures Testnet activo")
+        print("Bot futures testnet corriendo")
 
         while self.running:
             try:
                 price = self.get_price()
                 balance = self.get_balance()
 
-                print(f"Precio: {price} | Balance: {balance}")
+                print("Balance:", balance)
 
                 if self.position == 0:
-                    if int(time.time()) % 40 == 0:
+                    if int(time.time()) % 30 == 0:
                         self.buy(price)
                 else:
                     if price > self.entry_price * 1.002:
