@@ -8,15 +8,14 @@ class TradingBot:
         self.api_key = os.environ.get("BINANCE_API_KEY")
         self.api_secret = os.environ.get("BINANCE_API_SECRET")
 
+        # Binance Demo Trading endpoint correcto
         self.client = Client(self.api_key, self.api_secret)
-        
-        # ENDPOINT CORRECTO FUTURES TESTNET
-        self.client.FUTURES_URL = "https://testnet.binancefuture.com/fapi"
+        self.client.FUTURES_URL = "https://demo.binance.com/fapi"
 
         self.symbol = "BTCUSDT"
         self.position = 0
         self.entry_price = 0
-        self.trade_size_usdt = 25
+        self.trade_size_usdt = 50
         self.running = True
 
     def get_price(self):
@@ -24,10 +23,10 @@ class TradingBot:
         return float(ticker["price"])
 
     def get_balance(self):
-        acc = self.client.futures_account_balance()
-        for a in acc:
-            if a["asset"] == "USDT":
-                return float(a["balance"])
+        balances = self.client.futures_account_balance()
+        for b in balances:
+            if b["asset"] == "USDT":
+                return float(b["balance"])
         return 0
 
     def buy(self, price):
@@ -59,7 +58,7 @@ class TradingBot:
             print("SELL error:", e)
 
     def run(self):
-        print("Bot futures testnet activo")
+        print("Bot conectado a Binance Demo")
 
         while self.running:
             try:
