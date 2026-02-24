@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Multi-Market Bot</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+body{background:#0f1117;color:white;font-family:Arial}
+.card{background:#1c1f26;padding:20px;margin:10px;border-radius:10px}
+</style>
+</head>
+<body>
+
+<h1>AI Trading Dashboard</h1>
+
+<div class="card">
+Balance: <span id="balance"></span>
+</div>
+
+<div class="card">
+<h3>Positions</h3>
+<div id="positions"></div>
+</div>
+
+<div class="card">
+<h3>Trades</h3>
+<div id="trades"></div>
+</div>
+
+<canvas id="chart"></canvas>
+
+<script>
+let ctx = document.getElementById("chart").getContext("2d");
+let chart = new Chart(ctx,{
+type:"line",
+data:{labels:[],datasets:[{label:"Equity",data:[],borderColor:"lime"}]}
+});
+
+async function update(){
+let r = await fetch("/data");
+let d = await r.json();
+
+document.getElementById("balance").innerText=d.balance;
+
+let posHTML="";
+for(let p in d.positions){
+posHTML+=p+" entry:"+d.positions[p].entry+"<br>";
+}
+document.getElementById("positions").innerHTML=posHTML;
+
+let tHTML="";
+d.trades.forEach(t=>{
+tHTML+=t.symbol+" pnl:"+t.pnl+"<br>";
+});
+document.getElementById("trades").innerHTML=tHTML;
+
+chart.data.labels=d.equity.map((_,i)=>i);
+chart.data.datasets[0].data=d.equity;
+chart.update();
+}
+
+setInterval(update,2000);
+</script>
+
+</body>
+</html>
