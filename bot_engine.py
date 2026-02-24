@@ -1,66 +1,68 @@
 import time
-import os
-import requests
-import hmac
-import hashlib
 
-class TradingBot:
+class PortfolioEngine:
 
     def __init__(self):
-        self.api_key = os.environ.get("BINANCE_API_KEY")
-        self.api_secret = os.environ.get("BINANCE_API_SECRET")
+        self.balance = 10000
+        self.positions = {}
+        self.trades = []
+        self.equity_curve = []
 
-        self.base_url = "https://demo.binance.com"
-        self.symbol = "BTCUSDT"
-        self.position = 0
-        self.entry_price = 0
-        self.trade_size_usdt = 50
-        self.running = True
+        self.assets = {
+            "BTCUSDT": {"type":"crypto"},
+            "ETHUSDT": {"type":"crypto"},
+            "EURUSD": {"type":"forex"},
+            "AAPL": {"type":"stock"},
+            "TSLA": {"type":"stock"}
+        }
 
-    def sign(self, params):
-        query_string = "&".join([f"{k}={v}" for k, v in params.items()])
-        signature = hmac.new(
-            self.api_secret.encode(),
-            query_string.encode(),
-            hashlib.sha256
-        ).hexdigest()
-        return query_string + "&signature=" + signature
+        self.risk_per_trade = 0.02
 
-    def get_balance(self):
-        try:
-            params = {
-                "timestamp": int(time.time() * 1000)
+    def open_position(self, symbol, price):
+        if symbol not in self.positions:
+            size = self.balance * self.risk_per_trade
+            qty = size / price
+            self.positions[symbol] = {
+                "entry": price,
+                "qty": qty
             }
-            query = self.sign(params)
 
-            headers = {"X-MBX-APIKEY": self.api_key}
+    def close_position(self, symbol, price):
+        if symbol in self.positions:
+            pos = self.positions[symbol]
+            pnl = (price - pos["entry"]) * pos["qty"]
+            self.balance += pnl
 
-            response = requests.get(
-                f"{self.base_url}/fapi/v2/balance?{query}",
-                headers=headers
-            )
+            self.trades.append({
+                "symbol": symbol,
+                "entry": pos["entry"],
+                "exit": price,
+                "pnl": pnl
+            })
 
-            data = response.json()
+            del self.positions[symbol]
 
-            for asset in data:
-                if asset["asset"] == "USDT":
-                    return float(asset["balance"])
+    def step(self, prices):
+        for symbol, price in prices.items():
 
-        except Exception as e:
-            print("Balance error:", e)
+            if symbol not in self.positions:
+                if time.time() % 30 < 2:
+                    self.open_position(symbol, price)
 
-        return 0
+            else:
+                entry = self.positions[symbol]["entry"]
 
-    def run(self):
-        print("BOT CONECTADO A BINANCE DEMO DIRECTO")
+                if price > entry * 1.01 or price < entry * 0.99:
+                    self.close_position(symbol, price)
 
-        while self.running:
-            balance = self.get_balance()
-            print("Balance real:", balance)
-            time.sleep(10)
+        self.equity_curve.append(self.balance)
 
-    def stop(self):
-        self.running = False
+    def get_status(self):
+        return {
+            "balance": round(self.balance,2),
+            "positions": self.positions,
+            "trades": self.trades[-20:],
+            "equity": self.equity_curve[-200:]
+        }
 
-
-bot = TradingBot()
+engine = PortfolioEngine()
